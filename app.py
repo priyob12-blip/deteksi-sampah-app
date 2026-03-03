@@ -1,6 +1,9 @@
 import streamlit as st
 from PIL import Image, ImageDraw
 import time
+import pandas as pd
+import numpy as np
+from datetime import datetime
 
 # Konfigurasi Halaman 
 st.set_page_config(
@@ -9,6 +12,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- SIMULASI DATABASE (SESSION STATE) ---
+# Ini agar data form yang dikirim benar-benar tersimpan selama web dibuka
+if 'data_insiden' not in st.session_state:
+    st.session_state.data_insiden = pd.DataFrame(columns=["Waktu", "Lokasi", "Kategori", "Deskripsi", "Status"])
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -26,11 +34,12 @@ st.write("Gunakan menu tab di bawah untuk bernavigasi antar fitur.")
 tab1, tab2, tab3 = st.tabs(["🔍 Deteksi AI", "📊 Dasbor Lingkungan", "⚠️ Lapor Insiden & SOP"])
 
 # ==========================================
-# TAB 1: DETEKSI AI (KODE LAMA DIMASUKKAN KE SINI)
+# TAB 1: DETEKSI AI
 # ==========================================
 with tab1:
     st.markdown("### 📷 Pemindai Limbah Cerdas")
     st.write("Unggah foto sampah/limbah yang ditemukan di area kerja.")
+    st.caption("Catatan: Mode deteksi saat ini menggunakan kotak simulasi hingga model Machine Learning (AI) sesungguhnya diintegrasikan.")
     
     uploaded_file = st.file_uploader("Pilih gambar sampah (Format: JPG, JPEG, PNG)", type=["jpg", "jpeg", "png"])
 
@@ -51,7 +60,7 @@ with tab1:
                 
                 st.success("Analisis Selesai!")
                 
-                # Bounding Box (Kotak)
+                # Bounding Box (Kotak Simulasi)
                 annotated_image = image.copy()
                 draw = ImageDraw.Draw(annotated_image)
                 img_width, img_height = annotated_image.size
@@ -66,68 +75,4 @@ with tab1:
 
                 # Hasil Objek
                 st.markdown("""
-                    <div style='background-color: #d4edda; padding: 10px; border-radius: 5px; border-left: 5px solid #28a745; margin-bottom: 5px;'>
-                        <h5 style='color: #155724; margin:0;'>🌱 Daun Kering (ORGANIK) - 96.2%</h5>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown("""
-                    <div style='background-color: #f8d7da; padding: 10px; border-radius: 5px; border-left: 5px solid #dc3545; margin-bottom: 10px;'>
-                        <h5 style='color: #721c24; margin:0;'>🧴 Bungkus Plastik (ANORGANIK) - 92.8%</h5>
-                    </div>
-                """, unsafe_allow_html=True)
-
-# ==========================================
-# TAB 2: DASBOR LINGKUNGAN (FITUR BARU)
-# ==========================================
-with tab2:
-    st.markdown("### 📈 Pencapaian Lingkungan Bulan Ini")
-    st.write("Pantau terus metrik keberlanjutan perusahaan kita.")
-    
-    # Menampilkan metrik seperti dashboard sungguhan
-    colA, colB, colC = st.columns(3)
-    colA.metric(label="Total Limbah Didaur Ulang", value="1,245 kg", delta="12% dari bulan lalu")
-    colB.metric(label="Limbah Berbahaya (B3) Diamankan", value="34 kg", delta="-5% dari bulan lalu", delta_color="inverse")
-    colC.metric(label="Pengurangan Jejak Karbon", value="450 kg CO2", delta="8% dari bulan lalu")
-    
-    st.divider()
-    st.info("💡 Target kuartal ini: Mencapai **Zero Waste to Landfill** (Nol Sampah ke TPA). Terus gunakan AI untuk memilah sampah dengan benar!")
-
-# ==========================================
-# TAB 3: LAPOR INSIDEN & SOP (FITUR BARU)
-# ==========================================
-with tab3:
-    st.markdown("### ⚠️ Pelaporan Kondisi Tidak Aman (Unsafe Condition)")
-    st.write("Jika menemukan tumpahan bahan kimia, pecahan kaca, atau limbah berbahaya yang tidak tertangani, segera lapor di sini.")
-    
-    # Membuat Form Interaktif
-    with st.form("form_insiden"):
-        lokasi = st.text_input("📍 Lokasi Temuan (Misal: Area Produksi Gedung B)")
-        kategori_bahaya = st.selectbox("🛑 Kategori Bahaya", ["Tumpahan Cairan Kimia", "Limbah Medis/B3 Berserakan", "Pecahan Kaca/Material Tajam", "Lainnya"])
-        deskripsi = st.text_area("📝 Deskripsi Detail Kejadian")
-        
-        # Tombol Kirim Form
-        submitted = st.form_submit_button("Kirim Laporan ke Tim HSSE 🚨")
-        if submitted:
-            st.success(f"Terima kasih! Laporan bahaya di **{lokasi}** telah dikirim ke petugas piket HSSE.")
-
-    st.divider()
-    
-    # Menambahkan SOP menggunakan Expander (Bisa di-klik untuk membuka)
-    st.markdown("### 📚 Buku Saku SOP Keselamatan Darurat")
-    
-    with st.expander("SOP Penanganan Tumpahan Bahan Kimia (Spill Kit)"):
-        st.write("""
-        1. **Amankan Area:** Pasang barikade atau tanda peringatan (Warning Sign) di sekitar tumpahan.
-        2. **Gunakan APD:** Wajib menggunakan kacamata safety, sarung tangan *nitrile*, dan masker *respirator*.
-        3. **Gunakan Absorben:** Taburkan pasir atau bantalan penyerap dari kotak *Spill Kit* ke atas cairan.
-        4. **Pembuangan:** Sapu material penyerap dan masukkan ke dalam kantong plastik kuning (Limbah B3).
-        """)
-        
-    with st.expander("SOP Penanganan Pecahan Kaca atau Benda Tajam"):
-        st.write("""
-        1. **JANGAN pernah** mengambil serpihan kaca dengan tangan kosong meskipun menggunakan sarung tangan kain.
-        2. Gunakan sapu dan pengki untuk mengumpulkan serpihan.
-        3. Masukkan ke dalam wadah yang keras dan tidak mudah tertembus (misal: botol plastik tebal atau kardus berlapis).
-        4. Beri label **"AWAS BENDA TAJAM / SHARP HAZARD"** pada wadah tersebut.
-        """)
+                    <div style='background-color: #d4edda; padding: 10px; border-radius: 5px; border-left: 5px solid
