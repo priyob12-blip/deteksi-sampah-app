@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageDraw
 import time
 
 # Konfigurasi Halaman (Harus selalu di baris paling atas setelah import)
@@ -49,7 +49,24 @@ if uploaded_file is not None:
             
             st.success("Analisis Selesai!")
             
-            # --- MODIFIKASI DIMULAI DI SINI: Simulasi Deteksi Banyak Objek ---
+            # --- MULAI SIMULASI BOUNDING BOX (KOTAK) ---
+            annotated_image = image.copy()
+            draw = ImageDraw.Draw(annotated_image)
+            img_width, img_height = annotated_image.size
+            
+            # Gambar Kotak 1: Daun (Organik) - Warna Hijau
+            # Koordinat [x1, y1, x2, y2] disimulasikan sesuai proporsi gambar
+            kotak_organik = [img_width*0.1, img_height*0.2, img_width*0.4, img_height*0.4]
+            draw.rectangle(kotak_organik, outline="#28a745", width=5)
+            
+            # Gambar Kotak 2: Plastik (Anorganik) - Warna Merah
+            kotak_anorganik = [img_width*0.45, img_height*0.5, img_width*0.8, img_height*0.8]
+            draw.rectangle(kotak_anorganik, outline="#dc3545", width=5)
+            
+            # Tampilkan gambar yang sudah "dikotakin"
+            st.image(annotated_image, use_container_width=True, caption="Deteksi Objek (Kotak Hijau: Organik, Kotak Merah: Anorganik)")
+            # --- SELESAI SIMULASI BOUNDING BOX ---
+
             st.write("🔍 **Ditemukan beberapa objek dalam gambar:**")
             
             # Objek 1: Organik (Misalnya Daun Kering)
