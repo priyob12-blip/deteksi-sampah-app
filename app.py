@@ -14,8 +14,8 @@ st.set_page_config(page_title="Portal HSSE", page_icon="♻️", layout="wide", 
 # 2. DATABASE AKUN & SESSION STATE
 # ==========================================
 USERS = {
-    "admin": {"password": "123", "role": "Admin", "nama": "Komandan HSSE"},
-    "warga": {"password": "abc", "role": "Warga", "nama": "Karyawan Lapangan"}
+    "admin": {"password": "123456", "role": "Admin", "nama": "HSSE"},
+    "user": {"password": "abcdef", "role": "User", "nama": "Karyawan Lapangan"}
 }
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
