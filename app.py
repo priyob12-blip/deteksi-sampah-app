@@ -1,69 +1,61 @@
-# ==========================================
-# TAB 3: LAPOR INSIDEN (FORM & UPDATE STATUS)
-# ==========================================
-with tab3:
-    st.markdown("### ⚠️ Pelaporan Kondisi Tidak Aman (Unsafe Condition)")
-    
-    # 1. FORM INPUT LAPORAN (UNTUK USER)
-    with st.form("form_insiden", clear_on_submit=True):
-        lokasi = st.text_input("📍 Lokasi Temuan (Misal: Area Produksi Gedung B)")
-        kategori_bahaya = st.selectbox("🛑 Kategori Bahaya", ["Tumpahan Cairan Kimia", "Limbah Medis/B3 Berserakan", "Pecahan Kaca/Material Tajam", "Lainnya"])
-        deskripsi = st.text_area("📝 Deskripsi Detail Kejadian")
-        
-        submitted = st.form_submit_button("Kirim Laporan ke Tim HSSE 🚨")
-        
-        if submitted and lokasi != "":
-            waktu_sekarang = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            data_baru = pd.DataFrame([{
-                "Waktu": waktu_sekarang, 
-                "Lokasi": lokasi, 
-                "Kategori": kategori_bahaya, 
-                "Deskripsi": deskripsi, 
-                "Status": "Pending 🔴"
-            }])
-            st.session_state.data_insiden = pd.concat([st.session_state.data_insiden, data_baru], ignore_index=True)
-            st.success(f"Laporan bahaya di **{lokasi}** berhasil tersimpan di database!")
+import streamlit as st
+from PIL import Image, ImageDraw
+import time
+import pandas as pd
+import numpy as np
+from datetime import datetime
 
-    st.divider()
-    
-    # 2. TAMPILKAN TABEL LAPORAN
-    st.markdown("#### 📋 Log Laporan Insiden Terbaru")
-    st.dataframe(st.session_state.data_insiden, use_container_width=True, hide_index=True)
+# ==========================================
+# 1. KONFIGURASI HALAMAN (Wajib Paling Atas)
+# ==========================================
+st.set_page_config(
+    page_title="Portal HSSE",
+    page_icon="♻️",
+    layout="wide",
+    initial_sidebar_state="collapsed" # Sembunyikan sidebar di awal
+)
 
-    # 3. FITUR UPDATE STATUS KHUSUS ADMIN (BARU)
-    st.markdown("#### 🛠️ Panel Admin: Update Status Laporan")
-    if len(st.session_state.data_insiden) == 0:
-        st.info("Belum ada laporan yang perlu diurus.")
-    else:
-        # Bikin form kecil untuk update status
-        col_admin1, col_admin2 = st.columns(2)
-        with col_admin1:
-            # Memilih laporan berdasarkan urutan (index)
-            pilih_laporan = st.selectbox(
-                "Pilih Laporan yang akan di-update:", 
-                st.session_state.data_insiden.index, 
-                format_func=lambda x: f"Laporan {x+1} - {st.session_state.data_insiden.loc[x, 'Lokasi']}"
-            )
-        with col_admin2:
-            status_baru = st.selectbox(
-                "Ubah Status Menjadi:", 
-                ["Pending 🔴", "Sedang Ditangani 🟡", "Approved / Selesai 🟢"]
-            )
+# ==========================================
+# 2. DATABASE AKUN & SESSION STATE
+# ==========================================
+USERS = {
+    "admin": {"password": "123", "role": "Admin", "nama": "Komandan HSSE"},
+    "warga": {"password": "abc", "role": "Warga", "nama": "Karyawan Lapangan"}
+}
+
+# Menyimpan status login
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'username' not in st.session_state: st.session_state.username = ""
+if 'role' not in st.session_state: st.session_state.role = ""
+if 'nama' not in st.session_state: st.session_state.nama = ""
+
+# Menyimpan data tabel
+if 'data_insiden' not in st.session_state:
+    st.session_state.data_insiden = pd.DataFrame(columns=["Waktu", "Pelapor", "Lokasi", "Kategori", "Deskripsi", "Status"])
+if 'data_limbah' not in st.session_state:
+    st.session_state.data_limbah = pd.DataFrame(columns=["Waktu Input", "Petugas", "Organik (kg)", "Anorganik (kg)", "B3 (kg)"])
+
+# ==========================================
+# 3. HALAMAN LOGIN (MUNCUL DI AWAL SAJA)
+# ==========================================
+if not st.session_state.logged_in:
+    # Membuat jarak kosong dari atas agar kotak login ada di tengah layar
+    st.write("<br><br><br>", unsafe_allow_html=True)
+    
+    st.markdown("<h1 style='text-align: center;'>🔐 Portal Keamanan HSSE</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Sistem Manajemen Limbah & Keselamatan Terpadu</p>", unsafe_allow_html=True)
+    
+    # Membagi layar jadi 3 kolom agar form login ada di tengah (tidak terlalu lebar)
+    col_kiri, col_tengah, col_kanan = st.columns([1, 1.5, 1])
+    
+    with col_tengah:
+        st.write("---")
+        with st.form("form_login"):
+            input_user = st.text_input("👤 Username", placeholder="Ketik: admin / warga")
+            input_pass = st.text_input("🔑 Password", type="password", placeholder="Ketik: 123 / abc")
             
-        if st.button("Update Status Laporan 💾", type="primary"):
-            st.session_state.data_insiden.loc[pilih_laporan, "Status"] = status_baru
-            st.success("Status berhasil diperbarui! Silakan lihat perubahan di tabel atas.")
-            time.sleep(1) # Jeda sedikit sebelum tabel otomatis ter-refresh
-            st.rerun() # Perintah otomatis Streamlit untuk me-refresh halaman
-
-    st.divider()
-    
-    # 4. BUKU SAKU SOP
-    st.markdown("### 📚 Buku Saku SOP Keselamatan Darurat")
-    with st.expander("SOP Penanganan Tumpahan Bahan Kimia (Spill Kit)"):
-        st.write('''
-        1. **Amankan Area:** Pasang barikade atau tanda peringatan di sekitar tumpahan.
-        2. **Gunakan APD:** Wajib menggunakan kacamata safety, sarung tangan nitrile, dan masker.
-        3. **Gunakan Absorben:** Taburkan pasir atau bantalan penyerap dari kotak *Spill Kit*.
-        4. **Pembuangan:** Sapu material penyerap dan masukkan ke kantong plastik kuning (Limbah B3).
-        ''')
+            st.write("") # Spasi
+            tombol_login = st.form_submit_button("Masuk ke Sistem 🚀", use_container_width=True)
+            
+            if tombol_login:
+                if input_user in USERS and USERS[input_user]["password"]
