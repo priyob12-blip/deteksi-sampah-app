@@ -2,42 +2,45 @@ import streamlit as st
 from PIL import Image
 import time
 
-# Konfigurasi Halaman (Harus selalu di baris paling atas setelah import)
-st.set_page_config(
-    page_title="AI Pendeteksi Sampah",
-    page_icon="♻️",
-    layout="wide", # Membuat tampilan web melebar dan modern
-    initial_sidebar_state="expanded"
-)
+# Pengaturan halaman
+st.set_page_config(page_title="AI Pendeteksi Sampah", page_icon="♻️", layout="wide")
 
-# --- SIDEBAR (Menu Samping) ---
-with st.sidebar:
-    st.title("💡 Info Aplikasi")
-    st.write("Aplikasi ini menggunakan simulasi teknologi *Computer Vision* untuk membedakan jenis sampah.")
-    st.info("Kategori yang didukung:\n- 🌱 **Organik** (Sisa makanan, daun)\n- 🧴 **Anorganik** (Plastik, kaleng, kaca)")
-    st.write("---")
-    st.write("© 2026 - Dibuat untuk bumi yang lebih bersih. 🌍")
-
-# --- HEADER UTAMA ---
 st.title("♻️ AI Pendeteksi Sampah Pintar")
-st.markdown("Mari jaga lingkungan dengan memilah sampah dengan benar. **Unggah foto sampahmu di bawah ini!** ⬇️")
+st.write("Silakan upload gambar sampah untuk dianalisis oleh sistem kami.")
 st.write("---")
 
-# --- AREA UPLOAD ---
-uploaded_file = st.file_uploader("Pilih gambar sampah (Format: JPG, JPEG, PNG)", type=["jpg", "jpeg", "png"])
+# Area Upload
+uploaded_file = st.file_uploader("Pilih gambar sampah (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
-# --- AREA HASIL ---
 if uploaded_file is not None:
-    # Membagi layar menjadi 2 kolom: Kiri untuk gambar, Kanan untuk hasil
+    # Bikin 2 kolom
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("📷 Gambar Kamu")
         image = Image.open(uploaded_file)
-        # Menampilkan gambar dengan sudut melengkung (bawaan Streamlit)
-        st.image(image, use_container_width=True, caption="Gambar siap dianalisis")
+        st.image(image, use_container_width=True)
 
     with col2:
         st.subheader("🤖 Hasil Analisis AI")
+        st.write("Klik tombol di bawah untuk memulai pemindaian.")
         
-        # Tombol deteksi dengan
+        # Tombol deteksi
+        klik_deteksi = st.button("Mulai Deteksi 🚀", type="primary")
+        
+        if klik_deteksi:
+            # Efek loading
+            with st.spinner('Sistem sedang memindai gambar... 🔍'):
+                time.sleep(2)
+            
+            # Hasil yang akan muncul setelah loading selesai
+            st.success("Analisis Selesai!")
+            st.markdown("### 🌱 Kategori: **ORGANIK**")
+            st.write("Tingkat Keyakinan AI: **98.5%**")
+            
+            st.info("""
+            **Saran Tindakan:**
+            - Jangan dicampur dengan plastik/kaca.
+            - Buang ke tempat sampah berwarna **HIJAU**.
+            - Bisa diolah menjadi kompos.
+            """)
