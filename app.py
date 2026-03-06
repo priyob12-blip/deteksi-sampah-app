@@ -221,4 +221,221 @@ with tab1:
             term1 = ((t1_a + t1_b) / 2) * tinggi_dinding * l_eff
             term2 = ((tinggi_dinding * s_val) / 2) * t1_b * 2
             vol_bruto = term1 + term2
-        else
+        else:
+            vol_bruto = tinggi_dinding * (panjang - 2*lebar_dinding) * (lebar - 2*panjang_tebal_dinding)
+
+        vol_pond_tank = 0
+        for i in range(5):
+            r_atas, r_bawah = d_atas_pond[i] / 2, d_bawah_pond[i] / 2
+            v_pondasi = (1/3) * math.pi * t_pondasis[i] * (r_atas**2 + r_bawah**2 + (r_atas * r_bawah))
+            v_tank = math.pi * (d_tanks[i]/2)**2 * max(0, tinggi_dinding - t_pondasis[i])
+            vol_pond_tank += (v_pondasi + v_tank)
+        
+        vol_efektif_bund = vol_bruto - vol_pond_tank
+        vol_min = kapasitas_tank_besar * 1.0
+
+        est_kapasitas = estimate_cap(d_safety_1)
+        dist_fac, dist_road = get_nfpa_dist(est_kapasitas) 
+        
+        if tipe_atap == "Floating Roof":
+            if jenis_proteksi == "Non Proteksi (None)":
+                tank_to_prop = min(d_safety_1 * 1.0, 52.5) 
+                tank_to_road = (1/6) * d_safety_1
+            else: 
+                tank_to_prop = 0.5 * d_safety_1
+                tank_to_road = (1/6) * d_safety_1
+        else:  
+            if jenis_proteksi == "Approved Foam System":
+                mult_prop = 0.5
+                mult_build = 0.5
+            elif jenis_proteksi == "Non Proteksi (None)":
+                mult_prop = 2.0  
+                mult_build = 1.0 
+            else: 
+                mult_prop = 1.0
+                mult_build = 1.0
+                
+            tank_to_road = dist_road * mult_build 
+            tank_to_prop = dist_fac * mult_prop   
+
+        if produk in ["Pertalite", "Pertamax"]:
+            kelas_bbm_calc = "Class I"
+        elif produk in ["Solar", "Avtur"]:
+            kelas_bbm_calc = "Class II"
+        else:
+            kelas_bbm_calc = "Class IIIA"
+
+        max_d_s = max(d_safety_1, d_safety_2)
+        sum_d_s = d_safety_1 + d_safety_2
+        
+        if max_d_s <= 45:
+            shell_to_shell = (1/6) * sum_d_s
+        else:
+            if containment_type == "Remote Impounding":
+                if tipe_atap == "Floating Roof":
+                    shell_to_shell = (1/6) * sum_d_s
+                else: 
+                    if kelas_bbm_calc in ["Class I", "Class II"]:
+                        shell_to_shell = (1/4) * sum_d_s
+                    else: 
+                        shell_to_shell = (1/6) * sum_d_s
+            else: 
+                if tipe_atap == "Floating Roof":
+                    shell_to_shell = (1/4) * sum_d_s
+                else: 
+                    if kelas_bbm_calc in ["Class I", "Class II"]:
+                        shell_to_shell = (1/3) * sum_d_s
+                    else: 
+                        shell_to_shell = (1/4) * sum_d_s
+        
+        is_comply = vol_efektif_bund > kapasitas_tank_besar * 1 and tinggi_dinding <= 1.8
+        status_class = "status-comply" if is_comply else "status-noncomply"
+        status_text = "✓ COMPLY - AMAN" if is_comply else "✗ NON COMPLY"
+
+        st.markdown(f"### 📈 HASIL ANALISIS")
+        res1, res2, res3, res4 = st.columns(4)
+        res1.metric("Volume Bruto", f"{vol_bruto:.2f} m³")
+        res1.metric("Vol. Pond+Tank", f"{vol_pond_tank:.2f} m³")
+        res2.metric("Vol. Efektif Bund", f"{vol_efektif_bund:.2f} m³")
+        res2.metric("Volume Minimum", f"{vol_min:.2f} m³")
+        with res3:
+            st.write("Status Safety:")
+            st.markdown(f"<div class='{status_class}'>{status_text}</div>", unsafe_allow_html=True)
+        
+        if d_safety_1 > 0:
+            st.markdown("---")
+            st.write(f"**Safety Distance Minimum (NFPA 30 - {produk}):**")
+            sd_col1, sd_col2, sd_col3 = st.columns(3)
+            sd_col1.metric("Shell to Shell", f"{shell_to_shell:.2f} m")
+            sd_col2.metric("Shell to Building", f"{tank_to_road:.2f} m") 
+            sd_col3.metric("Shell to Property", f"{tank_to_prop:.2f} m") 
+            
+            if produk in ["Pertalite", "Pertamax"]:
+                kelas_bbm = "Class I"
+            elif produk in ["Solar", "Avtur"]: 
+                kelas_bbm = "Class II"
+            else: 
+                kelas_bbm = "Class IIIA"
+                
+            caption_text = f"Klasifikasi: {kelas_bbm} (Tabel Utama NFPA 30)."
+            st.caption(caption_text)
+
+        if not is_comply:
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("💡 LIHAT REKOMENDASI "):
+                st.markdown("### Rekomendasi Teknis HSSE")
+                kekurangan = vol_min - vol_efektif_bund
+                
+                rec_col1, rec_col2 = st.columns(2)
+                
+                with rec_col1:
+                    st.info("**Opsi Rekayasa Fisik**")
+                    luas_estimasi = vol_bruto / tinggi_dinding if tinggi_dinding > 0 else 1
+                    tambah_h = kekurangan / luas_estimasi
+                    target_h = tinggi_dinding + tambah_h
+                    
+                    if target_h <= 1.8:
+                        st.write(f"1. **Peninggian Dinding:** Target tinggi dinding baru adalah **{target_h:.2f} m** (Sesuai batas NFPA < 1.8m).")
+                    else:
+                        st.write(f"1. **Perluasan Area:** Peninggian dinding hingga 1.8m tidak cukup. Diperlukan perluasan panjang/lebar area.")
+                    
+                    st.write("2. **Remote Impounding:** Integrasikan antar bundwall untuk atasi keterbatasan volume. Gunakan sistem Remote Impounding dengan saluran peluap ke kolam sekunder")
+
+                with rec_col2:
+                    st.info("**Opsi Administratif & Operasional**")
+                    aman_kl = vol_efektif_bund / 1.0
+                    st.write(f"1. **Downgrading Kapasitas:** Batasi pengisian tangki terbesar maksimal hingga **{aman_kl:.2f} KL**.")
+                    st.write("2. **Adjustment HLA:** Atur ulang sensor *High Level Alarm* (HLA) sesuai kapasitas bundwall saat ini.")
+                    
+                st.warning("⚠️ Perubahan fisik wajib melalui kajian teknis sipil dan pemastian jarak aman (Safety Distance) tetap terjaga.")
+
+
+# ==============================================================================
+# TAB 2: FITUR BARU (MODE PERENCANAAN / DESIGN GENERATOR) - REVISI TRAPESIUM
+# ==============================================================================
+with tab2:
+    st.markdown("<div class='custom-card'><div class='section-title'>⚙️ Mode Desain Generatif (Reverse Engineering)</div>", unsafe_allow_html=True)
+    st.write("Mode ini digunakan untuk **Perencanaan Proyek Baru**. Masukkan target kapasitas dan profil dinding trapesium, sistem akan menghitung dimensi tanggul yang presisi.")
+    
+    st.markdown("---")
+    
+    # Input Parameter Wajib (Mengakomodasi Lebar Atas & Lebar Bawah)
+    col_d1, col_d2, col_d3 = st.columns(3)
+    target_kapasitas_desain = col_d1.number_input("Target Kapasitas 100% (m³)", min_value=1.0, value=1000.0)
+    lebar_atas_desain = col_d2.number_input("Rencana Lebar Atas Dinding (m)", min_value=0.1, value=0.3)
+    lebar_bawah_desain = col_d3.number_input("Rencana Lebar Bawah Dinding (m)", min_value=0.1, value=1.0)
+    
+    # Pilihan Strategi Desain
+    st.markdown("#### Strategi Pembuatan Dimensi:")
+    mode_desain = st.radio(
+        "Pilih batasan yang mengunci desain Anda:",
+        ["Kunci Luas Tanah (Sistem akan mencari Tinggi Dinding yang tepat)", 
+         "Kunci Tinggi Dinding (Sistem akan mencari Luas Lahan Persegi yang tepat)"]
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if mode_desain == "Kunci Luas Tanah (Sistem akan mencari Tinggi Dinding yang tepat)":
+        st.info("Gunakan mode ini jika lahan di kilang sudah dipatok batas luarnya.")
+        cd1, cd2 = st.columns(2)
+        p_lahan = cd1.number_input("Batas Panjang Luar Lahan (m)", min_value=1.0, value=30.0)
+        l_lahan = cd2.number_input("Batas Lebar Luar Lahan (m)", min_value=1.0, value=30.0)
+        
+        if st.button("🏗️ GENERATE TINGGI DINDING", type="primary", use_container_width=True):
+            # Reverse Math (Persamaan Linear) mencari Tinggi (h)
+            s_val = (lebar_bawah_desain - lebar_atas_desain) / 2
+            t1_a = p_lahan - (2 * lebar_bawah_desain)            
+            t1_b = p_lahan - (2 * (lebar_atas_desain + s_val))   
+            l_eff = l_lahan - (2 * lebar_bawah_desain)             
+            
+            if t1_a <= 0 or l_eff <= 0:
+                st.error("❌ Lahan terlalu sempit untuk ukuran tebal pondasi dinding bawah yang direncanakan! (Lantai dalam jadi minus).")
+            else:
+                # Koefisien pengali tinggi berdasarkan rumus Trapesium di Tab 1
+                term1_coeff = ((t1_a + t1_b) / 2) * l_eff
+                term2_coeff = s_val * t1_b
+                total_coeff = term1_coeff + term2_coeff
+                
+                if total_coeff <= 0:
+                    st.error("Dimensi dinding tidak logis.")
+                else:
+                    tinggi_req = target_kapasitas_desain / total_coeff
+                    
+                    st.markdown("### 📊 Hasil Rekomendasi Desain:")
+                    if tinggi_req <= 1.8:
+                        st.success(f"✅ Untuk menampung **{target_kapasitas_desain} m³**, Anda perlu membangun dinding setinggi: **{tinggi_req:.2f} meter**.")
+                        st.write("Desain ini **Aman dan Comply** dengan batas tinggi maksimal NFPA 30 (< 1.8 m).")
+                    else:
+                        st.error(f"❌ Diperlukan dinding setinggi: **{tinggi_req:.2f} meter**.")
+                        st.warning("⚠️ **Peringatan NFPA 30:** Tinggi ini melebihi batas standar (1.8m). Silakan perluas ukuran lahan luar Anda atau tipiskan dimensi dinding.")
+                    
+    else:
+        st.info("Gunakan mode ini jika Anda menetapkan tinggi maksimal (misal 1.5m), dan ingin tahu berapa batas tanah terluar yang dibutuhkan.")
+        t_dinding_plan = st.number_input("Rencana Tinggi Dinding (m)", min_value=0.1, max_value=1.8, value=1.5, help="Sesuai NFPA maksimal 1.8m")
+        
+        if st.button("📐 GENERATE LUAS LAHAN", type="primary", use_container_width=True):
+            # Reverse Math menggunakan PERSAMAAN KUADRAT (A*X^2 + B*X + C = 0)
+            h = t_dinding_plan
+            s = (lebar_bawah_desain - lebar_atas_desain) / 2
+            V = target_kapasitas_desain
+            
+            # Rumus Diskriminan untuk mencari Lebar Dalam Efektif (W)
+            A = h
+            B = 2 * h * s
+            C = (2 * h * (s**2)) - V
+            
+            D = (B**2) - (4 * A * C)
+            
+            if D < 0:
+                st.error("Kombinasi angka tidak bisa membentuk geometri trapesium yang valid.")
+            else:
+                # Mencari Sisi Dalam menggunakan rumus ABC
+                W1 = (-B + math.sqrt(D)) / (2 * A)
+                
+                # Sisi Luar = Sisi Dalam + (2 x Lebar Bawah Dinding)
+                panjang_luar_req = W1 + (2 * lebar_bawah_desain)
+                
+                st.markdown("### 📊 Hasil Rekomendasi Desain:")
+                st.success(f"✅ Untuk dinding trapesium setinggi **{t_dinding_plan} m**, Anda membutuhkan Lahan Terluar berukuran:")
+                st.markdown(f"#### **{panjang_luar_req:.2f} m x {panjang_luar_req:.2f} m**")
+                st.write(f"*(Ukuran ini memastikan bagian terdalam tanggul dapat memenuhi target {target_kapasitas_desain} m³, setelah dipotong kemiringan dinding bawah {lebar_bawah_desain}m).*")
